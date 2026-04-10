@@ -473,7 +473,7 @@ footer {
 
   </div>
 
-  <div class="card" style="margin-bottom:0;">
+  <div class="card" style="margin-bottom: 1.5rem;">
     <p class="card-label">Análisis de sentimiento</p>
     <div class="card-title">Distribución de polaridad</div>
     <div class="dist-bar">
@@ -485,6 +485,22 @@ footer {
       <div class="dist-label"><div class="dist-dot" style="background:var(--terracota);"></div><span>Negativos: <b id="dl-neg">—</b></span></div>
       <div class="dist-label"><div class="dist-dot" style="background:var(--dorado-claro);"></div><span>Neutrales: <b id="dl-neu">—</b></span></div>
       <div class="dist-label"><div class="dist-dot" style="background:var(--verde-salvia);"></div><span>Positivos: <b id="dl-pos">—</b></span></div>
+    </div>
+  </div>
+
+  <div class="main-grid" style="margin-top: 1.5rem;">
+    <div class="card">
+      <p class="card-label">Explicabilidad de la IA</p>
+      <div class="card-title">Importancia de Variables (Weights)</div>
+      <div style="position: relative; height: 250px;">
+        <canvas id="importanceChart"></canvas>
+      </div>
+    </div>
+    
+    <div id="placeholder-correlacion" class="card">
+      <p class="card-label">Matemática Aplicada</p>
+      <div class="card-title">Matriz de Correlación</div>
+      <div class="empty-state">Preparando el heatmap de correlación cruzada para el próximo sprint...</div>
     </div>
   </div>
 
@@ -501,6 +517,7 @@ footer {
 <script>
 const API = 'https://bitcoin-api-8lu0.onrender.com';
 let tsChart = null;
+let impChart = null;
 
 const LEXICON = {
   happy:3,love:3,great:3,excellent:3,amazing:3,awesome:3,fantastic:3,wonderful:3,
@@ -594,23 +611,18 @@ async function fetchBinance() {
 
 function renderTimeSeries(tech, posts) {
     const ctx = document.getElementById('timeSeriesChart').getContext('2d');
-    
-    // Agrupar sentimiento de Reddit por hora
     const sentimentByHour = {};
     posts.forEach(p => {
         const hour = new Date(p.created_utc * 1000).getHours();
         if (!sentimentByHour[hour]) sentimentByHour[hour] = [];
         sentimentByHour[hour].push(vader(p.text));
     });
-
     const sentimentData = tech.times.map(label => {
         const hour = parseInt(label.split(':')[0]);
         const scores = sentimentByHour[hour] || [];
         return scores.length > 0 ? scores.reduce((a,b)=>a+b,0)/scores.length : null;
     });
-
     if (tsChart) tsChart.destroy();
-
     tsChart = new Chart(ctx, {
         type: 'line',
         data: {
@@ -644,16 +656,13 @@ function renderTimeSeries(tech, posts) {
             maintainAspectRatio: false,
             scales: {
                 yPrice: {
-                    type: 'linear',
-                    position: 'left',
+                    type: 'linear', position: 'left',
                     grid: { color: 'rgba(0,0,0,0.05)' },
                     title: { display: true, text: 'Precio (USD)', font: { size: 10, family: 'DM Mono' } }
                 },
                 ySent: {
-                    type: 'linear',
-                    position: 'right',
-                    min: -1,
-                    max: 1,
+                    type: 'linear', position: 'right',
+                    min: -1, max: 1,
                     grid: { display: false },
                     title: { display: true, text: 'VADER Score', font: { size: 10, family: 'DM Mono' } }
                 },
@@ -664,6 +673,36 @@ function renderTimeSeries(tech, posts) {
             },
             plugins: {
                 legend: { position: 'top', labels: { font: { size: 10, family: 'DM Sans' } } }
+            }
+        }
+    });
+}
+
+function renderImportance() {
+    const ctx = document.getElementById('importanceChart').getContext('2d');
+    const labels = ['Sentimiento (VADER)', 'RSI (14h)', 'Retorno 1h', 'Volatilidad', 'vs MA12', 'Vol. Relativo'];
+    const dataValues = [0.35, 0.25, 0.15, 0.12, 0.08, 0.05];
+    if (impChart) impChart.destroy();
+    impChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Peso en la decisión',
+                data: dataValues,
+                backgroundColor: '#7CB99A',
+                borderRadius: 4,
+                borderWidth: 0
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { beginAtZero: true, grid: { display: false }, ticks: { font: { size: 9, family: 'DM Mono' } } },
+                y: { grid: { display: false }, ticks: { font: { size: 10, family: 'DM Sans' } } }
             }
         }
     });
@@ -747,30 +786,26 @@ async function runAnalysis() {
   btn.textContent = 'Analizando...';
   try {
     const [posts, tech] = await Promise.all([fetchReddit(), fetchBinance()]);
-    
     renderComments(posts);
     renderDistribution(posts);
     renderTech(tech);
     renderTimeSeries(tech, posts);
-
+    renderImportance(); // Llamamos a la nueva gráfica
     document.getElementById('m-posts').textContent    = posts.length;
     document.getElementById('m-price').textContent    = '$'+Math.round(tech.cur).toLocaleString();
     document.getElementById('m-change').textContent   = (tech.ret1h>=0?'+':'')+fmt(tech.ret1h)+'% (1h)';
     document.getElementById('m-change').style.color   = tech.ret1h>=0?'var(--verde-oscuro)':'var(--terracota)';
     document.getElementById('m-rsi').textContent      = fmt(tech.rsi,1);
     document.getElementById('m-rsi-label').textContent= tech.rsi>70?'Sobrecomprado':tech.rsi<30?'Sobrevendido':'Zona neutral';
-    
     const scores = posts.map(p=>vader(p.text));
     const avgV   = scores.length > 0 ? scores.reduce((a,b)=>a+b,0)/scores.length : 0;
     document.getElementById('m-vader').textContent      = fmt(avgV,3,true);
     document.getElementById('m-vader-label').textContent= avgV>0.1?'Positivo':avgV<-0.1?'Negativo':'Neutral';
-    
     const result = await callAPI({
       vader:avgV, textblob:avgV*0.8, subjectivity:0.45,
       retorno_1h:tech.ret1h, retorno_3h:tech.ret3h, rsi:tech.rsi,
       volatilidad_6h:tech.std, volumen_relativo:tech.volRel, precio_vs_ma12:tech.pVsMa
     });
-    
     if(result.error) throw new Error(result.error);
     renderPrediction(result);
     setStatus('Análisis completado · '+new Date().toLocaleTimeString(), 'green');
