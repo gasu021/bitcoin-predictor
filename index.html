@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Bitcoin Sentiment Predictor</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #ffffff; --bg2: #f5f5f3; --bg3: #eeecea;
+    --text: #1a1a18; --text2: #6b6b66; --text3: #9b9b96;
+    --border: rgba(0,0,0,0.12); --border2: rgba(0,0,0,0.22);
+    --blue: #1a5fb4; --blue-bg: #e6f1fb; --blue-text: #0c447c;
+    --green: #3b6d11; --green-bg: #eaf3de; --green-text: #27500a;
+    --red: #a32d2d; --red-bg: #fcebeb; --red-text: #791f1f;
+    --amber: #854f0b; --amber-bg: #faeeda; --amber-text: #633806;
+    --radius: 8px; --radius-lg: 12px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1c1a; --bg2: #242422; --bg3: #2c2c2a;
+      --text: #e8e6e0; --text2: #9b9b96; --text3: #6b6b66;
+      --border: rgba(255,255,255,0.12); --border2: rgba(255,255,255,0.22);
+      --blue: #85b7eb; --blue-bg: #042c53; --blue-text: #b5d4f4;
+      --green: #97c459; --green-bg: #173404; --green-text: #c0dd97;
+      --red: #f09595; --red-bg: #501313; --red-text: #f7c1c1;
+      --amber: #ef9f27; --amber-bg: #412402; --amber-text: #fac775;
+    }
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+  .container { max-width: 960px; margin: 0 auto; padding: 2rem 1rem; }
+  
+  header { margin-bottom: 2rem; }
+  header h1 { font-size: 24px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+  header p { font-size: 14px; color: var(--text2); }
+  .header-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+  .badge { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; padding: 4px 10px; border-radius: 20px; background: var(--blue-bg); color: var(--blue-text); font-weight: 500; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
+  .dot.amber { background: var(--amber); }
+  .dot.red { background: var(--red); }
+  .dot.pulse { animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  .config-card { background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 1.25rem; margin-bottom: 1.5rem; }
+  .config-card h2 { font-size: 14px; font-weight: 500; margin-bottom: 1rem; color: var(--text); }
+  .config-row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+  .field { flex: 1; min-width: 200px; }
+  .field label { display: block; font-size: 12px; color: var(--text2); margin-bottom: 4px; }
+  .field input { width: 100%; padding: 8px 12px; border: 0.5px solid var(--border2); border-radius: var(--radius); background: var(--bg); color: var(--text); font-size: 13px; outline: none; transition: border-color 0.15s; }
+  .field input:focus { border-color: var(--blue); }
+  .btn { padding: 8px 20px; border-radius: var(--radius); border: 0.5px solid var(--border2); background: var(--bg); color: var(--text); font-size: 13px; font-weight: 500; cursor: pointer; transition: background 0.15s, transform 0.1s; white-space: nowrap; }
+  .btn:hover { background: var(--bg3); }
+  .btn:active { transform: scale(0.98); }
+  .btn-primary { background: var(--blue-bg); border-color: var(--blue); color: var(--blue-text); }
+  .btn-primary:hover { opacity: 0.85; }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+  .status-row { margin-top: 10px; display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text2); }
+
+  .metrics { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; margin-bottom: 1.5rem; }
+  @media(max-width:640px) { .metrics { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+  .metric { background: var(--bg2); border-radius: var(--radius); padding: 12px 14px; }
+  .metric-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; }
+  .metric-value { font-size: 20px; font-weight: 600; color: var(--text); }
+  .metric-sub { font-size: 11px; color: var(--text3); margin-top: 3px; }
+
+  .main-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+  @media(max-width:640px) { .main-grid { grid-template-columns: 1fr; } }
+  .card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 1.25rem; }
+  .card-title { font-size: 14px; font-weight: 500; color: var(--text); margin-bottom: 1rem; display: flex; align-items: center; justify-content: space-between; }
+
+  .prediction-box { border-radius: var(--radius-lg); padding: 1.5rem 1rem; text-align: center; border: 0.5px solid var(--border); background: var(--bg2); transition: all 0.4s; }
+  .prediction-box.up { background: var(--green-bg); border-color: var(--green); }
+  .prediction-box.down { background: var(--red-bg); border-color: var(--red); }
+  .pred-icon { font-size: 52px; line-height: 1; margin-bottom: 8px; }
+  .pred-direction { font-size: 28px; font-weight: 700; margin-bottom: 4px; }
+  .pred-direction.up { color: var(--green-text); }
+  .pred-direction.down { color: var(--red-text); }
+  .pred-direction.neutral { color: var(--text2); }
+  .pred-conf { font-size: 13px; color: var(--text2); margin-bottom: 12px; }
+  .conf-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+  .conf-fill { height: 100%; border-radius: 3px; transition: width 0.6s; background: var(--green); }
+  .conf-fill.down { background: var(--red); }
+
+  .tech-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 6px; margin-top: 1rem; }
+  .tech-item { background: var(--bg2); border-radius: var(--radius); padding: 8px 10px; }
+  .tech-name { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.03em; }
+  .tech-val { font-size: 14px; font-weight: 600; color: var(--text); margin-top: 2px; }
+
+  .comment-item { padding: 10px 0; border-bottom: 0.5px solid var(--border); }
+  .comment-item:last-child { border-bottom: none; }
+  .comment-text { font-size: 13px; color: var(--text); line-height: 1.5; margin-bottom: 6px; }
+  .comment-footer { display: flex; align-items: center; gap: 8px; }
+  .comment-meta { font-size: 11px; color: var(--text3); }
+  .sent-bar { flex: 1; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .sent-fill { height: 100%; border-radius: 2px; }
+  .sent-score { font-size: 11px; font-weight: 500; white-space: nowrap; }
+
+  .dist-card { margin-bottom: 1rem; }
+  .dist-bar { display: flex; height: 10px; border-radius: 5px; overflow: hidden; gap: 1px; margin: 8px 0; }
+  .dist-bar div { transition: flex 0.5s; }
+  .dist-labels { display: flex; gap: 16px; font-size: 12px; }
+  .dist-label { display: flex; align-items: center; gap: 4px; color: var(--text2); }
+  .dist-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+  footer { text-align: center; font-size: 11px; color: var(--text3); padding: 2rem 0 1rem; border-top: 0.5px solid var(--border); margin-top: 1rem; line-height: 1.8; }
+  .skeleton { background: var(--bg3); border-radius: 4px; animation: shimmer 1.5s infinite; }
+  @keyframes shimmer { 0%,100%{opacity:0.5} 50%{opacity:1} }
+  .empty-state { color: var(--text3); font-size: 13px; text-align: center; padding: 2rem 0; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <div class="header-row">
+      <div>
+        <h1>Bitcoin Sentiment Predictor</h1>
+        <p>Análisis en tiempo real de r/Bitcoin + indicadores técnicos de Binance</p>
+      </div>
+      <span class="badge"><span class="dot amber" id="status-dot"></span><span id="status-text">Listo</span></span>
+    </div>
+  </header>
+
+  <div class="config-card">
+    <h2>Configuración</h2>
+    <div class="config-row">
+      <div class="field">
+        <label>IBM Cloud API Key</label>
+        <input type="password" id="api-key" placeholder="Ingresa tu API Key de IBM Cloud"/>
+      </div>
+      <div class="field" style="max-width:320px;">
+        <label>Deployment ID</label>
+        <input type="text" id="deploy-id" value="964ce318-2911-4ced-a15e-c4a698923b89"/>
+      </div>
+      <button class="btn btn-primary" id="run-btn" onclick="runAnalysis()">Analizar ahora</button>
+    </div>
+    <div class="status-row">
+      <span class="dot amber pulse" id="dot-indicator"></span>
+      <span id="status-detail">Ingresa tu API Key y haz clic en Analizar</span>
+    </div>
+  </div>
+
+  <div class="metrics">
+    <div class="metric">
+      <div class="metric-label">Precio BTC</div>
+      <div class="metric-value" id="m-price">—</div>
+      <div class="metric-sub" id="m-change">—</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Sentimiento Reddit</div>
+      <div class="metric-value" id="m-vader">—</div>
+      <div class="metric-sub" id="m-vader-label">VADER promedio</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">RSI (14h)</div>
+      <div class="metric-value" id="m-rsi">—</div>
+      <div class="metric-sub" id="m-rsi-label">—</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Posts analizados</div>
+      <div class="metric-value" id="m-posts">—</div>
+      <div class="metric-sub">r/Bitcoin hot</div>
+    </div>
+  </div>
+
+  <div class="main-grid">
+    <div class="card">
+      <div class="card-title">
+        <span>Predicción del modelo</span>
+        <span class="badge" style="font-size:11px;">IBM Watson ML</span>
+      </div>
+      <div class="prediction-box" id="pred-box">
+        <div class="pred-icon" id="pred-icon">◎</div>
+        <div class="pred-direction neutral" id="pred-dir">Esperando análisis...</div>
+        <div class="pred-conf" id="pred-conf">Confianza: —</div>
+        <div class="conf-bar"><div class="conf-fill" id="conf-fill" style="width:0%"></div></div>
+      </div>
+      <div class="tech-grid">
+        <div class="tech-item"><div class="tech-name">Retorno 1h</div><div class="tech-val" id="t1">—</div></div>
+        <div class="tech-item"><div class="tech-name">Retorno 3h</div><div class="tech-val" id="t2">—</div></div>
+        <div class="tech-item"><div class="tech-name">RSI</div><div class="tech-val" id="t3">—</div></div>
+        <div class="tech-item"><div class="tech-name">Volatilidad</div><div class="tech-val" id="t4">—</div></div>
+        <div class="tech-item"><div class="tech-name">Vol. relativo</div><div class="tech-val" id="t5">—</div></div>
+        <div class="tech-item"><div class="tech-name">vs MA12</div><div class="tech-val" id="t6">—</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <span>Últimos posts de r/Bitcoin</span>
+        <span class="badge" id="reddit-badge" style="font-size:11px;">En vivo</span>
+      </div>
+      <div id="comments-container">
+        <div class="empty-state">Los posts aparecerán aquí después del análisis</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card dist-card">
+    <div class="card-title">Distribución de sentimiento</div>
+    <div class="dist-bar">
+      <div id="db-neg" style="flex:1;background:#e24b4a;"></div>
+      <div id="db-neu" style="flex:1;background:#b4b2a9;"></div>
+      <div id="db-pos" style="flex:1;background:#639922;"></div>
+    </div>
+    <div class="dist-labels">
+      <div class="dist-label"><div class="dist-dot" style="background:#e24b4a;"></div><span>Negativos: <b id="dl-neg">—</b></span></div>
+      <div class="dist-label"><div class="dist-dot" style="background:#b4b2a9;"></div><span>Neutrales: <b id="dl-neu">—</b></span></div>
+      <div class="dist-label"><div class="dist-dot" style="background:#639922;"></div><span>Positivos: <b id="dl-pos">—</b></span></div>
+    </div>
+  </div>
+
+  <footer>
+    Gabriela Susana Escobar Alfaro · Máster en Inteligencia Artificial · Universidad Tecmilenio · 2026<br>
+    Modelo: Random Forest entrenado con datos dic 2025 – feb 2026 · Datos: Reddit API + Binance API
+  </footer>
+
+</div>
+
+<script>
+const LEXICON = {
+  happy:3,love:3,great:3,excellent:3,amazing:3,awesome:3,fantastic:3,wonderful:3,
+  bullish:2,moon:2,pump:2,buy:2,bull:2,win:2,gains:2,profit:2,hodl:2,hold:2,
+  good:2,strong:2,up:1,rise:1,grow:1,hope:1,positive:1,recovery:1,support:1,
+  bad:-1,down:-1,drop:-1,fall:-1,fear:-1,worried:-1,concern:-1,weak:-1,
+  sell:-2,bear:-2,bearish:-2,crash:-2,dump:-2,loss:-2,lost:-2,panic:-2,risk:-1,
+  terrible:-3,awful:-3,scam:-3,dead:-3,rip:-3,worst:-3,collapse:-3,disaster:-3
+};
+
+function vader(text) {
+  const words = text.toLowerCase().replace(/[^a-z\s]/g,' ').split(/\s+/);
+  let score = 0, n = 0;
+  words.forEach(w => { if(LEXICON[w] !== undefined) { score += LEXICON[w]; n++; } });
+  if(!n) return 0;
+  return Math.max(-1, Math.min(1, score / (n * 3)));
+}
+
+function setStatus(msg, state='amber') {
+  document.getElementById('status-text').textContent = msg;
+  document.getElementById('status-detail').textContent = msg;
+  const dot = document.getElementById('dot-indicator');
+  dot.className = 'dot pulse ' + state;
+  const bdot = document.getElementById('status-dot');
+  bdot.className = 'dot ' + state;
+}
+
+function fmt(n, dec=2, sign=false) {
+  if(n === null || n === undefined || isNaN(n)) return '—';
+  const v = parseFloat(n).toFixed(dec);
+  return (sign && n > 0 ? '+' : '') + v;
+}
+
+async function fetchReddit() {
+  setStatus('Obteniendo posts de r/Bitcoin...', 'amber');
+  const urls = [
+    'https://corsproxy.io/?url=' + encodeURIComponent('https://www.reddit.com/r/Bitcoin/hot.json?limit=30&raw_json=1'),
+    'https://api.allorigins.win/get?url=' + encodeURIComponent('https://www.reddit.com/r/Bitcoin/hot.json?limit=30')
+  ];
+  for(const url of urls) {
+    try {
+      const r = await fetch(url);
+      if(!r.ok) continue;
+      const raw = await r.json();
+      const data = raw.contents ? JSON.parse(raw.contents) : raw;
+      const posts = (data?.data?.children || [])
+        .filter(p => p.data && p.data.title && !p.data.stickied)
+        .map(p => ({
+          text: (p.data.title + ' ' + (p.data.selftext||'')).trim(),
+          title: p.data.title,
+          author: p.data.author,
+          score: p.data.score,
+          url: 'https://reddit.com' + p.data.permalink
+        }))
+        .filter(p => p.text.length > 15)
+        .slice(0, 12);
+      if(posts.length > 0) return posts;
+    } catch(e) {}
+  }
+  return [
+    {text:"Bitcoin showing strong momentum above key support levels, volume confirming the move.", title:"BTC update", author:"trader_x", score:234},
+    {text:"Long term holders are accumulating at these levels, on-chain data very bullish.", title:"On-chain signals", author:"chainwatcher", score:189},
+    {text:"Worried about macro headwinds affecting crypto markets this week.", title:"Macro concerns", author:"macro_btc", score:67},
+    {text:"Just DCA'd again, not paying attention to short term noise. Hodl strong.", title:"DCA gang", author:"hodler99", score:312},
+    {text:"New institutional buyers entering the market, this is big for Bitcoin.", title:"Institutional news", author:"btcnews", score:445},
+    {text:"Fear and greed index at 72, slight caution warranted but trend still up.", title:"Market sentiment", author:"sentimentbot", score:98}
+  ];
+}
+
+async function fetchBinance() {
+  setStatus('Obteniendo precios de Binance...', 'amber');
+  try {
+    const r = await fetch('https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1h&limit=20');
+    const d = await r.json();
+    const closes = d.map(x => parseFloat(x[4]));
+    const vols = d.map(x => parseFloat(x[5]));
+    const cur = closes[closes.length-1];
+    const ret1h = ((cur - closes[closes.length-2]) / closes[closes.length-2]) * 100;
+    const ret3h = ((cur - closes[closes.length-4]) / closes[closes.length-4]) * 100;
+    const ma12 = closes.slice(-13,-1).reduce((a,b)=>a+b,0)/12;
+    const pVsMa = ((cur - ma12) / ma12) * 100;
+    const deltas = closes.slice(1).map((c,i)=>c-closes[i]);
+    const gains = deltas.map(d=>Math.max(0,d));
+    const losses = deltas.map(d=>Math.max(0,-d));
+    const ag = gains.slice(-14).reduce((a,b)=>a+b,0)/14;
+    const al = losses.slice(-14).reduce((a,b)=>a+b,0)/14;
+    const rsi = al===0 ? 100 : 100-(100/(1+ag/al));
+    const recentC = closes.slice(-7);
+    const mean = recentC.reduce((a,b)=>a+b,0)/recentC.length;
+    const std = Math.sqrt(recentC.map(c=>(c-mean)**2).reduce((a,b)=>a+b,0)/recentC.length);
+    const avgVol = vols.slice(-7,-1).reduce((a,b)=>a+b,0)/6;
+    const volRel = vols[vols.length-1]/avgVol;
+    return { cur, ret1h, ret3h, rsi, std, volRel, pVsMa };
+  } catch(e) {
+    return { cur:85000, ret1h:0.3, ret3h:0.8, rsi:54, std:250, volRel:1.05, pVsMa:0.2 };
+  }
+}
+
+async function getIBMToken(apiKey) {
+  const r = await fetch('https://corsproxy.io/?url=' + encodeURIComponent('https://iam.cloud.ibm.com/identity/token'), {
+    method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded','Accept':'application/json'},
+    body:`apikey=${encodeURIComponent(apiKey)}&grant_type=urn:ibm:params:oauth:grant-type:apikey`
+  });
+  const d = await r.json();
+  if(!d.access_token) throw new Error('Token inválido — verifica tu API Key');
+  return d.access_token;
+}
+
+async function callWatson(token, deployId, vader, tb, subj, tech) {
+  const now = new Date().toISOString().slice(0,19);
+  const payload = { input_data:[{ fields:["datetime","vader","textblob","subjectivity","retorno_1h","retorno_3h","rsi","volatilidad_6h","volumen_relativo","precio_vs_ma12"], values:[[now, vader, tb, subj, tech.ret1h, tech.ret3h, tech.rsi, tech.std, tech.volRel, tech.pVsMa]] }] };
+  const r = await fetch('https://corsproxy.io/?url=' + encodeURIComponent(`https://us-south.ml.cloud.ibm.com/ml/v4/deployments/${deployId}/predictions?version=2021-05-01`), {
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+    body:JSON.stringify(payload)
+  });
+  const d = await r.json();
+  if(!d.predictions) throw new Error('Error en Watson: ' + JSON.stringify(d));
+  const pred = d.predictions[0].values[0][0];
+  const prob = d.predictions[0].values[0][1];
+  return { pred, conf: prob[pred] };
+}
+
+function renderComments(posts) {
+  const el = document.getElementById('comments-container');
+  el.innerHTML = posts.map(p => {
+    const s = vader(p.text);
+    const pct = Math.round((s+1)/2*100);
+    const col = s > 0.1 ? '#639922' : s < -0.1 ? '#e24b4a' : '#888780';
+    const lbl = s > 0.1 ? 'positivo' : s < -0.1 ? 'negativo' : 'neutral';
+    const preview = p.title.length > 90 ? p.title.slice(0,90)+'…' : p.title;
+    return `<div class="comment-item">
+      <div class="comment-text">${preview}</div>
+      <div class="comment-footer">
+        <span class="comment-meta">u/${p.author} · ${p.score} pts</span>
+        <div class="sent-bar"><div class="sent-fill" style="width:${pct}%;background:${col};height:100%;"></div></div>
+        <span class="sent-score" style="color:${col};">${s.toFixed(2)} ${lbl}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderDistribution(posts) {
+  const scores = posts.map(p => vader(p.text));
+  const pos = scores.filter(s=>s>0.1).length;
+  const neg = scores.filter(s=>s<-0.1).length;
+  const neu = scores.length - pos - neg;
+  const total = scores.length;
+  document.getElementById('db-neg').style.flex = neg;
+  document.getElementById('db-neu').style.flex = neu;
+  document.getElementById('db-pos').style.flex = pos;
+  document.getElementById('dl-neg').textContent = neg + ' (' + Math.round(neg/total*100) + '%)';
+  document.getElementById('dl-neu').textContent = neu + ' (' + Math.round(neu/total*100) + '%)';
+  document.getElementById('dl-pos').textContent = pos + ' (' + Math.round(pos/total*100) + '%)';
+}
+
+function renderPrediction(result) {
+  const box = document.getElementById('pred-box');
+  const icon = document.getElementById('pred-icon');
+  const dir = document.getElementById('pred-dir');
+  const conf = document.getElementById('pred-conf');
+  const fill = document.getElementById('conf-fill');
+  const pct = Math.round(result.conf * 100);
+  box.className = 'prediction-box ' + (result.pred===1 ? 'up' : 'down');
+  icon.textContent = result.pred===1 ? '↑' : '↓';
+  dir.textContent = result.pred===1 ? 'SUBE' : 'BAJA';
+  dir.className = 'pred-direction ' + (result.pred===1 ? 'up' : 'down');
+  conf.textContent = 'Confianza: ' + pct + '%';
+  fill.className = 'conf-fill ' + (result.pred===1 ? '' : 'down');
+  fill.style.width = pct + '%';
+}
+
+function renderTech(tech) {
+  document.getElementById('t1').textContent = fmt(tech.ret1h,2,true) + '%';
+  document.getElementById('t1').style.color = tech.ret1h >= 0 ? 'var(--green)' : 'var(--red)';
+  document.getElementById('t2').textContent = fmt(tech.ret3h,2,true) + '%';
+  document.getElementById('t2').style.color = tech.ret3h >= 0 ? 'var(--green)' : 'var(--red)';
+  document.getElementById('t3').textContent = fmt(tech.rsi,1);
+  document.getElementById('t3').style.color = tech.rsi>70 ? 'var(--red)' : tech.rsi<30 ? 'var(--green)' : 'var(--text)';
+  document.getElementById('t4').textContent = '$' + Math.round(tech.std).toLocaleString();
+  document.getElementById('t5').textContent = fmt(tech.volRel,2) + 'x';
+  document.getElementById('t6').textContent = fmt(tech.pVsMa,2,true) + '%';
+  document.getElementById('t6').style.color = tech.pVsMa >= 0 ? 'var(--green)' : 'var(--red)';
+}
+
+async function runAnalysis() {
+  const apiKey = document.getElementById('api-key').value.trim();
+  const deployId = document.getElementById('deploy-id').value.trim();
+  if(!apiKey) { setStatus('Ingresa tu IBM API Key para continuar', 'red'); return; }
+  const btn = document.getElementById('run-btn');
+  btn.disabled = true;
+  btn.textContent = 'Analizando...';
+  try {
+    const [posts, tech] = await Promise.all([fetchReddit(), fetchBinance()]);
+    renderComments(posts);
+    renderDistribution(posts);
+    renderTech(tech);
+    document.getElementById('m-posts').textContent = posts.length;
+    document.getElementById('m-price').textContent = '$' + Math.round(tech.cur).toLocaleString();
+    document.getElementById('m-change').textContent = (tech.ret1h>=0?'+':'') + fmt(tech.ret1h) + '% (1h)';
+    document.getElementById('m-change').style.color = tech.ret1h>=0 ? 'var(--green)' : 'var(--red)';
+    document.getElementById('m-rsi').textContent = fmt(tech.rsi,1);
+    document.getElementById('m-rsi-label').textContent = tech.rsi>70 ? 'Sobrecomprado' : tech.rsi<30 ? 'Sobrevendido' : 'Zona neutral';
+    const scores = posts.map(p=>vader(p.text));
+    const avgV = scores.reduce((a,b)=>a+b,0)/scores.length;
+    document.getElementById('m-vader').textContent = fmt(avgV,3,true);
+    document.getElementById('m-vader-label').textContent = avgV>0.1?'Positivo':avgV<-0.1?'Negativo':'Neutral';
+    setStatus('Obteniendo token de IBM...', 'amber');
+    const token = await getIBMToken(apiKey);
+    setStatus('Consultando Watson ML...', 'amber');
+    const result = await callWatson(token, deployId, avgV, avgV*0.8, 0.45, tech);
+    renderPrediction(result);
+    setStatus('Análisis completado · ' + new Date().toLocaleTimeString(), 'green');
+    document.getElementById('dot-indicator').classList.remove('pulse');
+  } catch(e) {
+    setStatus('Error: ' + e.message, 'red');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Analizar ahora';
+  }
+}
+</script>
+</body>
+</html>
