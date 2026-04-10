@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Bitcoin Sentiment Predictor — G. Escobar</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,700;1,400&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -360,7 +361,6 @@ footer {
 </head>
 <body>
 
-<!-- NAV -->
 <nav>
   <a href="#" class="nav-logo">
     <svg width="160" height="40" viewBox="0 0 160 40" xmlns="http://www.w3.org/2000/svg">
@@ -378,7 +378,6 @@ footer {
   <span class="nav-tagline">Máster en IA · Tecmilenio · 2026</span>
 </nav>
 
-<!-- HERO -->
 <div class="hero">
   <div class="hero-row">
     <div>
@@ -404,10 +403,8 @@ footer {
   </div>
 </div>
 
-<!-- MAIN CONTENT -->
 <div class="container">
 
-  <!-- METRICS -->
   <div class="metrics" style="margin-top:1.5rem;">
     <div class="metric">
       <div class="metric-label">Precio BTC</div>
@@ -431,10 +428,14 @@ footer {
     </div>
   </div>
 
-  <!-- MAIN GRID -->
+  <div class="card" style="margin-bottom: 1.5rem;">
+    <p class="card-label">Análisis de Correlación</p>
+    <div class="card-title">Histórico: Precio vs. Sentimiento (20h)</div>
+    <canvas id="timeSeriesChart" style="width: 100%; height: 280px;"></canvas>
+  </div>
+
   <div class="main-grid">
 
-    <!-- PREDICCIÓN -->
     <div class="card">
       <p class="card-label">Modelo predictivo</p>
       <div class="card-title">
@@ -457,7 +458,6 @@ footer {
       </div>
     </div>
 
-    <!-- COMENTARIOS -->
     <div class="card">
       <p class="card-label">Fuente de sentimiento</p>
       <div class="card-title">
@@ -471,7 +471,6 @@ footer {
 
   </div>
 
-  <!-- DISTRIBUCIÓN -->
   <div class="card" style="margin-bottom:0;">
     <p class="card-label">Análisis de sentimiento</p>
     <div class="card-title">Distribución de polaridad</div>
@@ -489,7 +488,6 @@ footer {
 
 </div>
 
-<!-- FOOTER -->
 <footer>
   <span class="footer-brand">G. Escobar</span>
   <svg width="100" height="14" viewBox="0 0 120 16" xmlns="http://www.w3.org/2000/svg">
@@ -500,6 +498,7 @@ footer {
 
 <script>
 const API = 'https://bitcoin-api-8lu0.onrender.com';
+let tsChart = null;
 
 const LEXICON = {
   happy:3,love:3,great:3,excellent:3,amazing:3,awesome:3,fantastic:3,wonderful:3,
@@ -544,19 +543,18 @@ async function fetchReddit() {
       const data = raw.contents ? JSON.parse(raw.contents) : raw;
       const posts = (data?.data?.children||[])
         .filter(p=>p.data&&p.data.title&&!p.data.stickied)
-        .map(p=>({text:(p.data.title+' '+(p.data.selftext||'')).trim(),title:p.data.title,author:p.data.author,score:p.data.score}))
+        .map(p=>({
+          text:(p.data.title+' '+(p.data.selftext||'')).trim(),
+          title:p.data.title,
+          author:p.data.author,
+          score:p.data.score,
+          created_utc: p.data.created_utc
+        }))
         .filter(p=>p.text.length>15);
       if(posts.length>0) return posts;
     } catch(e) {}
   }
-  return [
-    {text:"Bitcoin showing strong momentum above key support levels.", title:"BTC momentum strong", author:"trader_x", score:234},
-    {text:"Long term holders accumulating, on-chain data very bullish.", title:"Accumulation phase", author:"chainwatcher", score:189},
-    {text:"Worried about macro headwinds affecting crypto markets.", title:"Macro concerns", author:"macro_btc", score:67},
-    {text:"Just DCA'd again, not paying attention to short term noise. Hodl.", title:"DCA strategy", author:"hodler99", score:312},
-    {text:"New institutional buyers entering, this is massive for Bitcoin.", title:"Institutions", author:"btcnews", score:445},
-    {text:"Fear and greed index at 72, slight caution but trend still up.", title:"Sentiment check", author:"sentimentbot", score:98}
-  ];
+  return [];
 }
 
 async function fetchBinance() {
@@ -565,6 +563,10 @@ async function fetchBinance() {
     const r = await fetch('https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1h&limit=20');
     const d = await r.json();
     const closes = d.map(x=>parseFloat(x[4]));
+    const times  = d.map(x => {
+        const date = new Date(x[0]);
+        return date.getHours() + ":00";
+    });
     const vols   = d.map(x=>parseFloat(x[5]));
     const cur    = closes[closes.length-1];
     const ret1h  = ((cur-closes[closes.length-2])/closes[closes.length-2])*100;
@@ -582,10 +584,87 @@ async function fetchBinance() {
     const std    = Math.sqrt(recentC.map(c=>(c-mean)**2).reduce((a,b)=>a+b,0)/recentC.length);
     const avgVol = vols.slice(-7,-1).reduce((a,b)=>a+b,0)/6;
     const volRel = vols[vols.length-1]/avgVol;
-    return {cur, ret1h, ret3h, rsi, std, volRel, pVsMa};
+    return {cur, ret1h, ret3h, rsi, std, volRel, pVsMa, closes, times};
   } catch(e) {
-    return {cur:85000, ret1h:0.3, ret3h:0.8, rsi:54, std:250, volRel:1.05, pVsMa:0.2};
+    return {cur:0, ret1h:0, ret3h:0, rsi:50, std:0, volRel:1, pVsMa:0, closes:[], times:[]};
   }
+}
+
+function renderTimeSeries(tech, posts) {
+    const ctx = document.getElementById('timeSeriesChart').getContext('2d');
+    
+    // Agrupar sentimiento de Reddit por hora
+    const sentimentByHour = {};
+    posts.forEach(p => {
+        const hour = new Date(p.created_utc * 1000).getHours();
+        if (!sentimentByHour[hour]) sentimentByHour[hour] = [];
+        sentimentByHour[hour].push(vader(p.text));
+    });
+
+    const sentimentData = tech.times.map(label => {
+        const hour = parseInt(label.split(':')[0]);
+        const scores = sentimentByHour[hour] || [];
+        return scores.length > 0 ? scores.reduce((a,b)=>a+b,0)/scores.length : null;
+    });
+
+    if (tsChart) tsChart.destroy();
+
+    tsChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: tech.times,
+            datasets: [
+                {
+                    label: 'Precio BTC',
+                    data: tech.closes,
+                    borderColor: '#4A8C70',
+                    borderWidth: 2,
+                    yAxisID: 'yPrice',
+                    tension: 0.3,
+                    pointRadius: 0
+                },
+                {
+                    label: 'Sentimiento',
+                    data: sentimentData,
+                    borderColor: '#C0956A',
+                    backgroundColor: 'rgba(192, 149, 106, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    yAxisID: 'ySent',
+                    tension: 0.4,
+                    pointRadius: 3,
+                    spanGaps: true
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                yPrice: {
+                    type: 'linear',
+                    position: 'left',
+                    grid: { color: 'rgba(0,0,0,0.05)' },
+                    title: { display: true, text: 'Precio (USD)', font: { size: 10, family: 'DM Mono' } }
+                },
+                ySent: {
+                    type: 'linear',
+                    position: 'right',
+                    min: -1,
+                    max: 1,
+                    grid: { display: false },
+                    title: { display: true, text: 'VADER Score', font: { size: 10, family: 'DM Mono' } }
+                },
+                x: {
+                    grid: { display: false },
+                    ticks: { font: { size: 9, family: 'DM Mono' } }
+                }
+            },
+            plugins: {
+                legend: { position: 'top', labels: { font: { size: 10, family: 'DM Sans' } } }
+            }
+        }
+    });
 }
 
 async function callAPI(features) {
@@ -599,11 +678,10 @@ async function callAPI(features) {
 }
 
 function renderComments(posts) {
-  document.getElementById('comments-container').innerHTML = posts.map(p => {
+  document.getElementById('comments-container').innerHTML = posts.slice(0, 12).map(p => {
     const s   = vader(p.text);
     const pct = Math.round((s+1)/2*100);
     const col = s>0.1?'var(--verde-oscuro)':s<-0.1?'var(--terracota)':'var(--dorado-claro)';
-    const lbl = s>0.1?'positivo':s<-0.1?'negativo':'neutral';
     const preview = p.title.length>90?p.title.slice(0,90)+'…':p.title;
     return `<div class="comment-item">
       <div class="comment-text">${preview}</div>
@@ -621,7 +699,7 @@ function renderDistribution(posts) {
   const pos    = scores.filter(s=>s>0.1).length;
   const neg    = scores.filter(s=>s<-0.1).length;
   const neu    = scores.length-pos-neg;
-  const total  = scores.length;
+  const total  = scores.length || 1;
   document.getElementById('db-neg').style.flex = neg||0.01;
   document.getElementById('db-neu').style.flex = neu||0.01;
   document.getElementById('db-pos').style.flex = pos||0.01;
@@ -667,24 +745,30 @@ async function runAnalysis() {
   btn.textContent = 'Analizando...';
   try {
     const [posts, tech] = await Promise.all([fetchReddit(), fetchBinance()]);
+    
     renderComments(posts);
     renderDistribution(posts);
     renderTech(tech);
+    renderTimeSeries(tech, posts);
+
     document.getElementById('m-posts').textContent    = posts.length;
     document.getElementById('m-price').textContent    = '$'+Math.round(tech.cur).toLocaleString();
     document.getElementById('m-change').textContent   = (tech.ret1h>=0?'+':'')+fmt(tech.ret1h)+'% (1h)';
     document.getElementById('m-change').style.color   = tech.ret1h>=0?'var(--verde-oscuro)':'var(--terracota)';
     document.getElementById('m-rsi').textContent      = fmt(tech.rsi,1);
     document.getElementById('m-rsi-label').textContent= tech.rsi>70?'Sobrecomprado':tech.rsi<30?'Sobrevendido':'Zona neutral';
+    
     const scores = posts.map(p=>vader(p.text));
-    const avgV   = scores.reduce((a,b)=>a+b,0)/scores.length;
+    const avgV   = scores.length > 0 ? scores.reduce((a,b)=>a+b,0)/scores.length : 0;
     document.getElementById('m-vader').textContent      = fmt(avgV,3,true);
     document.getElementById('m-vader-label').textContent= avgV>0.1?'Positivo':avgV<-0.1?'Negativo':'Neutral';
+    
     const result = await callAPI({
       vader:avgV, textblob:avgV*0.8, subjectivity:0.45,
       retorno_1h:tech.ret1h, retorno_3h:tech.ret3h, rsi:tech.rsi,
       volatilidad_6h:tech.std, volumen_relativo:tech.volRel, precio_vs_ma12:tech.pVsMa
     });
+    
     if(result.error) throw new Error(result.error);
     renderPrediction(result);
     setStatus('Análisis completado · '+new Date().toLocaleTimeString(), 'green');
