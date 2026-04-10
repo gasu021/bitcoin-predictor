@@ -427,7 +427,7 @@ footer {
     <div class="metric">
       <div class="metric-label">Posts analizados</div>
       <div class="metric-value" id="m-posts">—</div>
-      <div class="metric-sub">r/Bitcoin hot</div>
+      <div class="metric-sub">r/Bitcoin new</div>
     </div>
   </div>
 
@@ -533,8 +533,8 @@ function fmt(n, dec=2, sign=false) {
 async function fetchReddit() {
   setStatus('Obteniendo posts de r/Bitcoin...', 'amber');
   const urls = [
-    'https://corsproxy.io/?url=' + encodeURIComponent('https://www.reddit.com/r/Bitcoin/hot.json?limit=30&raw_json=1'),
-    'https://api.allorigins.win/get?url=' + encodeURIComponent('https://www.reddit.com/r/Bitcoin/hot.json?limit=30')
+    'https://corsproxy.io/?url=' + encodeURIComponent('https://www.reddit.com/r/Bitcoin/new.json?limit=30&raw_json=1'),
+    'https://api.allorigins.win/get?url=' + encodeURIComponent('https://www.reddit.com/r/Bitcoin/new.json?limit=30')
   ];
   for(const url of urls) {
     try {
