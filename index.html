@@ -3,119 +3,412 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Bitcoin Sentiment Predictor</title>
+<title>Bitcoin Sentiment Predictor — G. Escobar</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,700;1,400&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  :root {
-    --bg: #ffffff; --bg2: #f5f5f3; --bg3: #eeecea;
-    --text: #1a1a18; --text2: #6b6b66; --text3: #9b9b96;
-    --border: rgba(0,0,0,0.12); --border2: rgba(0,0,0,0.22);
-    --blue: #1a5fb4; --blue-bg: #e6f1fb; --blue-text: #0c447c;
-    --green: #3b6d11; --green-bg: #eaf3de; --green-text: #27500a;
-    --red: #a32d2d; --red-bg: #fcebeb; --red-text: #791f1f;
-    --amber: #854f0b; --amber-bg: #faeeda; --amber-text: #633806;
-    --radius: 8px; --radius-lg: 12px;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #1c1c1a; --bg2: #242422; --bg3: #2c2c2a;
-      --text: #e8e6e0; --text2: #9b9b96; --text3: #6b6b66;
-      --border: rgba(255,255,255,0.12); --border2: rgba(255,255,255,0.22);
-      --blue: #85b7eb; --blue-bg: #042c53; --blue-text: #b5d4f4;
-      --green: #97c459; --green-bg: #173404; --green-text: #c0dd97;
-      --red: #f09595; --red-bg: #501313; --red-text: #f7c1c1;
-      --amber: #ef9f27; --amber-bg: #412402; --amber-text: #fac775;
-    }
-  }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
-  .container { max-width: 960px; margin: 0 auto; padding: 2rem 1rem; }
-  header { margin-bottom: 2rem; }
-  header h1 { font-size: 24px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
-  header p { font-size: 14px; color: var(--text2); }
-  .header-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
-  .badge { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; padding: 4px 10px; border-radius: 20px; background: var(--blue-bg); color: var(--blue-text); font-weight: 500; }
-  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
-  .dot.amber { background: var(--amber); }
-  .dot.red { background: var(--red); }
-  .dot.pulse { animation: pulse 1.5s infinite; }
-  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
-  .action-card { background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 1.25rem; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
-  .action-card p { font-size: 13px; color: var(--text2); }
-  .btn { padding: 8px 20px; border-radius: var(--radius); border: 0.5px solid var(--border2); background: var(--bg); color: var(--text); font-size: 13px; font-weight: 500; cursor: pointer; transition: background 0.15s, transform 0.1s; white-space: nowrap; }
-  .btn:hover { background: var(--bg3); }
-  .btn:active { transform: scale(0.98); }
-  .btn-primary { background: var(--blue-bg); border-color: var(--blue); color: var(--blue-text); }
-  .btn-primary:hover { opacity: 0.85; }
-  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
-  .status-row { margin-top: 10px; display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text2); }
-  .metrics { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; margin-bottom: 1.5rem; }
-  @media(max-width:640px) { .metrics { grid-template-columns: repeat(2, minmax(0,1fr)); } }
-  .metric { background: var(--bg2); border-radius: var(--radius); padding: 12px 14px; }
-  .metric-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; }
-  .metric-value { font-size: 20px; font-weight: 600; color: var(--text); }
-  .metric-sub { font-size: 11px; color: var(--text3); margin-top: 3px; }
-  .main-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
-  @media(max-width:640px) { .main-grid { grid-template-columns: 1fr; } }
-  .card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 1.25rem; }
-  .card-title { font-size: 14px; font-weight: 500; color: var(--text); margin-bottom: 1rem; display: flex; align-items: center; justify-content: space-between; }
-  .prediction-box { border-radius: var(--radius-lg); padding: 1.5rem 1rem; text-align: center; border: 0.5px solid var(--border); background: var(--bg2); transition: all 0.4s; }
-  .prediction-box.up { background: var(--green-bg); border-color: var(--green); }
-  .prediction-box.down { background: var(--red-bg); border-color: var(--red); }
-  .pred-icon { font-size: 52px; line-height: 1; margin-bottom: 8px; }
-  .pred-direction { font-size: 28px; font-weight: 700; margin-bottom: 4px; }
-  .pred-direction.up { color: var(--green-text); }
-  .pred-direction.down { color: var(--red-text); }
-  .pred-direction.neutral { color: var(--text2); }
-  .pred-conf { font-size: 13px; color: var(--text2); margin-bottom: 12px; }
-  .conf-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
-  .conf-fill { height: 100%; border-radius: 3px; transition: width 0.6s; background: var(--green); }
-  .conf-fill.down { background: var(--red); }
-  .tech-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 6px; margin-top: 1rem; }
-  .tech-item { background: var(--bg2); border-radius: var(--radius); padding: 8px 10px; }
-  .tech-name { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.03em; }
-  .tech-val { font-size: 14px; font-weight: 600; color: var(--text); margin-top: 2px; }
-  .comment-item { padding: 10px 0; border-bottom: 0.5px solid var(--border); }
-  .comment-item:last-child { border-bottom: none; }
-  .comment-text { font-size: 13px; color: var(--text); line-height: 1.5; margin-bottom: 6px; }
-  .comment-footer { display: flex; align-items: center; gap: 8px; }
-  .comment-meta { font-size: 11px; color: var(--text3); }
-  .sent-bar { flex: 1; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
-  .sent-fill { height: 100%; border-radius: 2px; }
-  .dist-card { margin-bottom: 1rem; }
-  .dist-bar { display: flex; height: 10px; border-radius: 5px; overflow: hidden; gap: 1px; margin: 8px 0; }
-  .dist-bar div { transition: flex 0.5s; }
-  .dist-labels { display: flex; gap: 16px; font-size: 12px; }
-  .dist-label { display: flex; align-items: center; gap: 4px; color: var(--text2); }
-  .dist-dot { width: 8px; height: 8px; border-radius: 50%; }
-  footer { text-align: center; font-size: 11px; color: var(--text3); padding: 2rem 0 1rem; border-top: 0.5px solid var(--border); margin-top: 1rem; line-height: 1.8; }
-  .empty-state { color: var(--text3); font-size: 13px; text-align: center; padding: 2rem 0; }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --verde-raiz:   #2C4A3E;
+  --verde-salvia: #7CB99A;
+  --verde-oscuro: #4A8C70;
+  --crema:        #F5EDE0;
+  --crema-oscura: #EDE0CE;
+  --terracota:    #C0956A;
+  --dorado:       #8A6240;
+  --dorado-claro: #C4A882;
+  --texto:        #1E2E28;
+  --texto-suave:  #4A6B5A;
+  --border:       rgba(44,74,62,0.15);
+  --border2:      rgba(138,98,64,0.25);
+  --radius:       6px;
+  --radius-lg:    10px;
+}
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--crema);
+  color: var(--texto);
+  line-height: 1.7;
+  min-height: 100vh;
+}
+
+/* ── NAV ── */
+nav {
+  background: var(--verde-raiz);
+  padding: 0 48px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.nav-logo { display: flex; align-items: center; text-decoration: none; }
+.nav-tagline {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(245,237,224,0.35);
+}
+
+/* ── HERO ── */
+.hero {
+  background: var(--verde-raiz);
+  padding: 40px 48px 48px;
+  border-bottom: 1px solid rgba(124,185,154,0.2);
+}
+.hero-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--verde-salvia);
+  margin-bottom: 10px;
+}
+.hero h1 {
+  font-family: 'Playfair Display', serif;
+  font-size: 32px;
+  font-weight: 400;
+  color: var(--crema);
+  line-height: 1.2;
+  margin-bottom: 8px;
+}
+.hero h1 em {
+  font-style: italic;
+  color: var(--terracota);
+}
+.hero p {
+  font-size: 14px;
+  color: rgba(245,237,224,0.55);
+  max-width: 520px;
+  line-height: 1.7;
+}
+.hero-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 2rem;
+  flex-wrap: wrap;
+}
+.hero-action { margin-top: 28px; display: flex; align-items: center; gap: 14px; }
+
+/* ── STATUS BADGE ── */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: rgba(245,237,224,0.5);
+}
+.dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--verde-salvia);
+}
+.dot.amber { background: var(--terracota); }
+.dot.red   { background: #C05050; }
+.dot.pulse { animation: pulse 1.5s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.25} }
+
+/* ── BUTTONS ── */
+.btn {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 9px 22px;
+  border-radius: var(--radius);
+  border: 0.5px solid var(--border2);
+  background: transparent;
+  color: var(--texto);
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+  letter-spacing: 0.01em;
+}
+.btn:hover { background: var(--crema-oscura); }
+.btn:active { transform: scale(0.98); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+.btn-primary {
+  background: var(--verde-salvia);
+  border-color: var(--verde-oscuro);
+  color: var(--verde-raiz);
+  font-weight: 500;
+}
+.btn-primary:hover { background: #6aaa8a; }
+
+/* ── CONTAINER ── */
+.container { max-width: 960px; margin: 0 auto; padding: 2rem 2rem; }
+
+/* ── METRICS ── */
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0,1fr));
+  gap: 10px;
+  margin-bottom: 1.5rem;
+}
+@media(max-width:640px){ .metrics { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+.metric {
+  background: white;
+  border: 0.5px solid var(--border2);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+}
+.metric-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--dorado);
+  margin-bottom: 5px;
+}
+.metric-value {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--texto);
+}
+.metric-sub {
+  font-size: 11px;
+  color: var(--texto-suave);
+  margin-top: 3px;
+}
+
+/* ── MAIN GRID ── */
+.main-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+@media(max-width:640px){ .main-grid { grid-template-columns: 1fr; } }
+
+/* ── CARDS ── */
+.card {
+  background: white;
+  border: 0.5px solid var(--border2);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem 1.5rem;
+}
+.card-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--dorado);
+  margin-bottom: 4px;
+}
+.card-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 17px;
+  font-weight: 400;
+  color: var(--verde-raiz);
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.badge {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  padding: 3px 9px;
+  border-radius: 20px;
+  background: var(--crema-oscura);
+  color: var(--dorado);
+  white-space: nowrap;
+}
+
+/* ── PREDICTION ── */
+.prediction-box {
+  border-radius: var(--radius-lg);
+  padding: 1.5rem 1rem;
+  text-align: center;
+  border: 0.5px solid var(--border);
+  background: var(--crema);
+  transition: all 0.4s;
+}
+.prediction-box.up {
+  background: #EAF3E8;
+  border-color: var(--verde-oscuro);
+}
+.prediction-box.down {
+  background: #FAF0E8;
+  border-color: var(--terracota);
+}
+.pred-icon { font-size: 48px; line-height: 1; margin-bottom: 8px; }
+.pred-direction {
+  font-family: 'Playfair Display', serif;
+  font-size: 26px;
+  font-weight: 500;
+  margin-bottom: 4px;
+  color: var(--texto-suave);
+}
+.pred-direction.up  { color: var(--verde-raiz); }
+.pred-direction.down { color: var(--dorado); }
+.pred-conf {
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  color: var(--texto-suave);
+  letter-spacing: 0.08em;
+  margin-bottom: 12px;
+}
+.conf-bar { height: 5px; background: var(--crema-oscura); border-radius: 3px; overflow: hidden; }
+.conf-fill { height: 100%; border-radius: 3px; transition: width 0.6s; background: var(--verde-oscuro); }
+.conf-fill.down { background: var(--terracota); }
+
+/* ── TECH GRID ── */
+.tech-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0,1fr));
+  gap: 6px;
+  margin-top: 1rem;
+}
+.tech-item {
+  background: var(--crema);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+}
+.tech-name {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--dorado);
+}
+.tech-val {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--texto);
+  margin-top: 2px;
+}
+
+/* ── COMMENTS ── */
+.comment-item {
+  padding: 10px 0;
+  border-bottom: 0.5px solid var(--border);
+}
+.comment-item:last-child { border-bottom: none; }
+.comment-text {
+  font-size: 13px;
+  color: var(--texto);
+  line-height: 1.5;
+  margin-bottom: 6px;
+}
+.comment-footer { display: flex; align-items: center; gap: 8px; }
+.comment-meta {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  color: var(--dorado-claro);
+  white-space: nowrap;
+}
+.sent-bar { flex: 1; height: 3px; background: var(--crema-oscura); border-radius: 2px; overflow: hidden; }
+.sent-fill { height: 100%; border-radius: 2px; }
+
+/* ── DISTRIBUTION ── */
+.dist-bar {
+  display: flex;
+  height: 8px;
+  border-radius: 4px;
+  overflow: hidden;
+  gap: 1px;
+  margin: 10px 0;
+}
+.dist-bar div { transition: flex 0.5s; }
+.dist-labels { display: flex; gap: 20px; font-size: 12px; }
+.dist-label { display: flex; align-items: center; gap: 5px; color: var(--texto-suave); }
+.dist-dot { width: 7px; height: 7px; border-radius: 50%; }
+
+/* ── FOOTER ── */
+footer {
+  background: var(--verde-raiz);
+  padding: 32px 48px;
+  margin-top: 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.footer-brand {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(245,237,224,0.4);
+}
+.footer-copy {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: rgba(245,237,224,0.25);
+  text-align: center;
+}
+
+.empty-state {
+  color: var(--texto-suave);
+  font-size: 13px;
+  text-align: center;
+  padding: 2rem 0;
+  font-style: italic;
+}
+
+@media(max-width:540px){
+  nav, .hero { padding-left: 20px; padding-right: 20px; }
+  .container { padding: 1.5rem 1rem; }
+  footer { padding: 24px 20px; }
+}
 </style>
 </head>
 <body>
+
+<!-- NAV -->
+<nav>
+  <a href="#" class="nav-logo">
+    <svg width="160" height="40" viewBox="0 0 160 40" xmlns="http://www.w3.org/2000/svg">
+      <ellipse cx="16" cy="20" rx="4" ry="10" transform="rotate(0 16 20)"   fill="#4A8C70" opacity="0.75"/>
+      <ellipse cx="16" cy="20" rx="4" ry="10" transform="rotate(45 16 20)"  fill="#C0956A" opacity="0.65"/>
+      <ellipse cx="16" cy="20" rx="4" ry="10" transform="rotate(90 16 20)"  fill="#4A8C70" opacity="0.75"/>
+      <ellipse cx="16" cy="20" rx="4" ry="10" transform="rotate(135 16 20)" fill="#C0956A" opacity="0.65"/>
+      <circle cx="16" cy="20" r="3.5" fill="#8A6240" opacity="0.95"/>
+      <circle cx="16" cy="20" r="1.2" fill="#F5EDE0"/>
+      <text x="30" y="16" font-family="Playfair Display,serif" font-size="13" fill="#F5EDE0" letter-spacing="2">G. ESCOBAR</text>
+      <path d="M30,22 Q40,18 50,22 Q60,26 70,22 Q80,18 90,22 Q100,26 110,22" fill="none" stroke="#7CB99A" stroke-width="0.8" opacity="0.6"/>
+      <text x="30" y="33" font-family="DM Mono,monospace" font-size="7" fill="#8A6240" letter-spacing="1.5">MATEMÁTICA · DATOS · IA</text>
+    </svg>
+  </a>
+  <span class="nav-tagline">Máster en IA · Tecmilenio · 2026</span>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-row">
+    <div>
+      <p class="hero-label">Proyecto final · Fase 3</p>
+      <h1>Bitcoin <em>Sentiment</em> Predictor</h1>
+      <p>Análisis en tiempo real de r/Bitcoin + indicadores técnicos de Binance para predecir la dirección del precio en la próxima hora.</p>
+      <div class="hero-action">
+        <button class="btn btn-primary" id="run-btn" onclick="runAnalysis()">Analizar ahora</button>
+        <span class="status-badge">
+          <span class="dot amber pulse" id="dot-hero"></span>
+          <span id="status-hero">Listo para analizar</span>
+        </span>
+      </div>
+    </div>
+    <svg width="90" height="90" viewBox="0 0 90 90" xmlns="http://www.w3.org/2000/svg" style="opacity:0.18;flex-shrink:0;">
+      <ellipse cx="45" cy="45" rx="12" ry="30" transform="rotate(0 45 45)"   fill="#7CB99A"/>
+      <ellipse cx="45" cy="45" rx="12" ry="30" transform="rotate(45 45 45)"  fill="#C0956A"/>
+      <ellipse cx="45" cy="45" rx="12" ry="30" transform="rotate(90 45 45)"  fill="#7CB99A"/>
+      <ellipse cx="45" cy="45" rx="12" ry="30" transform="rotate(135 45 45)" fill="#C0956A"/>
+      <circle cx="45" cy="45" r="10" fill="#8A6240"/>
+      <circle cx="45" cy="45" r="4"  fill="#F5EDE0"/>
+    </svg>
+  </div>
+</div>
+
+<!-- MAIN CONTENT -->
 <div class="container">
 
-  <header>
-    <div class="header-row">
-      <div>
-        <h1>Bitcoin Sentiment Predictor</h1>
-        <p>Análisis en tiempo real de r/Bitcoin + indicadores técnicos de Binance</p>
-      </div>
-      <span class="badge"><span class="dot amber" id="status-dot"></span><span id="status-text">Listo</span></span>
-    </div>
-  </header>
-
-  <div class="action-card">
-    <div>
-      <p>Analiza los últimos posts de r/Bitcoin junto con el precio actual de BTC para predecir la dirección del mercado en la próxima hora.</p>
-      <div class="status-row">
-        <span class="dot amber pulse" id="dot-indicator"></span>
-        <span id="status-detail">Haz clic en Analizar para comenzar</span>
-      </div>
-    </div>
-    <button class="btn btn-primary" id="run-btn" onclick="runAnalysis()">Analizar ahora</button>
-  </div>
-
-  <div class="metrics">
+  <!-- METRICS -->
+  <div class="metrics" style="margin-top:1.5rem;">
     <div class="metric">
       <div class="metric-label">Precio BTC</div>
       <div class="metric-value" id="m-price">—</div>
@@ -138,16 +431,20 @@
     </div>
   </div>
 
+  <!-- MAIN GRID -->
   <div class="main-grid">
+
+    <!-- PREDICCIÓN -->
     <div class="card">
+      <p class="card-label">Modelo predictivo</p>
       <div class="card-title">
-        <span>Predicción del modelo</span>
-        <span class="badge" style="font-size:11px;">IBM Watson ML</span>
+        Predicción del mercado
+        <span class="badge">IBM Watson ML</span>
       </div>
       <div class="prediction-box" id="pred-box">
         <div class="pred-icon" id="pred-icon">◎</div>
-        <div class="pred-direction neutral" id="pred-dir">Ejecuta el análisis</div>
-        <div class="pred-conf" id="pred-conf">Confianza: —</div>
+        <div class="pred-direction" id="pred-dir">Ejecuta el análisis</div>
+        <div class="pred-conf" id="pred-conf">CONFIANZA · —</div>
         <div class="conf-bar"><div class="conf-fill" id="conf-fill" style="width:0%"></div></div>
       </div>
       <div class="tech-grid">
@@ -160,37 +457,47 @@
       </div>
     </div>
 
+    <!-- COMENTARIOS -->
     <div class="card">
+      <p class="card-label">Fuente de sentimiento</p>
       <div class="card-title">
-        <span>Últimos posts de r/Bitcoin</span>
-        <span class="badge" id="reddit-badge" style="font-size:11px;">En vivo</span>
+        Últimos posts de r/Bitcoin
+        <span class="badge" id="reddit-badge">En vivo</span>
       </div>
       <div id="comments-container">
         <div class="empty-state">Los posts aparecerán aquí después del análisis</div>
       </div>
     </div>
+
   </div>
 
-  <div class="card dist-card">
-    <div class="card-title">Distribución de sentimiento</div>
+  <!-- DISTRIBUCIÓN -->
+  <div class="card" style="margin-bottom:0;">
+    <p class="card-label">Análisis de sentimiento</p>
+    <div class="card-title">Distribución de polaridad</div>
     <div class="dist-bar">
-      <div id="db-neg" style="flex:1;background:#e24b4a;"></div>
-      <div id="db-neu" style="flex:1;background:#b4b2a9;"></div>
-      <div id="db-pos" style="flex:1;background:#639922;"></div>
+      <div id="db-neg" style="flex:1;background:var(--terracota);"></div>
+      <div id="db-neu" style="flex:1;background:var(--dorado-claro);"></div>
+      <div id="db-pos" style="flex:1;background:var(--verde-salvia);"></div>
     </div>
     <div class="dist-labels">
-      <div class="dist-label"><div class="dist-dot" style="background:#e24b4a;"></div><span>Negativos: <b id="dl-neg">—</b></span></div>
-      <div class="dist-label"><div class="dist-dot" style="background:#b4b2a9;"></div><span>Neutrales: <b id="dl-neu">—</b></span></div>
-      <div class="dist-label"><div class="dist-dot" style="background:#639922;"></div><span>Positivos: <b id="dl-pos">—</b></span></div>
+      <div class="dist-label"><div class="dist-dot" style="background:var(--terracota);"></div><span>Negativos: <b id="dl-neg">—</b></span></div>
+      <div class="dist-label"><div class="dist-dot" style="background:var(--dorado-claro);"></div><span>Neutrales: <b id="dl-neu">—</b></span></div>
+      <div class="dist-label"><div class="dist-dot" style="background:var(--verde-salvia);"></div><span>Positivos: <b id="dl-pos">—</b></span></div>
     </div>
   </div>
 
-  <footer>
-    Gabriela Susana Escobar Alfaro · Máster en Inteligencia Artificial · Universidad Tecmilenio · 2026<br>
-    Modelo: Random Forest entrenado con datos dic 2025 – feb 2026 · Datos: Reddit API + Binance API · IBM Watson ML
-  </footer>
-
 </div>
+
+<!-- FOOTER -->
+<footer>
+  <span class="footer-brand">G. Escobar</span>
+  <svg width="100" height="14" viewBox="0 0 120 16" xmlns="http://www.w3.org/2000/svg">
+    <path d="M0,8 Q10,3 20,8 Q30,13 40,8 Q50,3 60,8 Q70,13 80,8 Q90,3 100,8 Q110,13 120,8" fill="none" stroke="#7CB99A" stroke-width="1.2" opacity="0.5"/>
+  </svg>
+  <span class="footer-copy">Bitcoin Sentiment Predictor · Máster IA · Tecmilenio 2026<br>Modelo: Random Forest · Datos: Reddit API + Binance API · IBM Watson ML</span>
+</footer>
+
 <script>
 const API = 'https://bitcoin-api-8lu0.onrender.com';
 
@@ -208,21 +515,19 @@ function vader(text) {
   let score = 0, n = 0;
   words.forEach(w => { if(LEXICON[w] !== undefined) { score += LEXICON[w]; n++; } });
   if(!n) return 0;
-  return Math.max(-1, Math.min(1, score / (n * 3)));
+  return Math.max(-1, Math.min(1, score/(n*3)));
 }
 
 function setStatus(msg, state='amber') {
-  document.getElementById('status-text').textContent = msg;
-  document.getElementById('status-detail').textContent = msg;
-  const dot = document.getElementById('dot-indicator');
+  document.getElementById('status-hero').textContent = msg;
+  const dot = document.getElementById('dot-hero');
   dot.className = 'dot pulse ' + state;
-  document.getElementById('status-dot').className = 'dot ' + state;
 }
 
 function fmt(n, dec=2, sign=false) {
-  if(n === null || n === undefined || isNaN(n)) return '—';
+  if(n===null||n===undefined||isNaN(n)) return '—';
   const v = parseFloat(n).toFixed(dec);
-  return (sign && n > 0 ? '+' : '') + v;
+  return (sign && n>0?'+':'') + v;
 }
 
 async function fetchReddit() {
@@ -237,21 +542,20 @@ async function fetchReddit() {
       if(!r.ok) continue;
       const raw = await r.json();
       const data = raw.contents ? JSON.parse(raw.contents) : raw;
-      const posts = (data?.data?.children || [])
-        .filter(p => p.data && p.data.title && !p.data.stickied)
-        .map(p => ({ text: (p.data.title+' '+(p.data.selftext||'')).trim(), title: p.data.title, author: p.data.author, score: p.data.score }))
-        .filter(p => p.text.length > 15)
-        .slice(0, 12);
-      if(posts.length > 0) return posts;
+      const posts = (data?.data?.children||[])
+        .filter(p=>p.data&&p.data.title&&!p.data.stickied)
+        .map(p=>({text:(p.data.title+' '+(p.data.selftext||'')).trim(),title:p.data.title,author:p.data.author,score:p.data.score}))
+        .filter(p=>p.text.length>15).slice(0,12);
+      if(posts.length>0) return posts;
     } catch(e) {}
   }
   return [
     {text:"Bitcoin showing strong momentum above key support levels.", title:"BTC momentum strong", author:"trader_x", score:234},
-    {text:"Long term holders accumulating at these levels, on-chain data bullish.", title:"Accumulation phase", author:"chainwatcher", score:189},
+    {text:"Long term holders accumulating, on-chain data very bullish.", title:"Accumulation phase", author:"chainwatcher", score:189},
     {text:"Worried about macro headwinds affecting crypto markets.", title:"Macro concerns", author:"macro_btc", score:67},
-    {text:"Just DCA'd again, not paying attention to short term noise.", title:"DCA gang", author:"hodler99", score:312},
-    {text:"New institutional buyers entering the market, big for Bitcoin.", title:"Institutions buying", author:"btcnews", score:445},
-    {text:"Fear and greed index at 72, slight caution but trend still up.", title:"Market sentiment update", author:"sentimentbot", score:98}
+    {text:"Just DCA'd again, not paying attention to short term noise. Hodl.", title:"DCA strategy", author:"hodler99", score:312},
+    {text:"New institutional buyers entering, this is massive for Bitcoin.", title:"Institutions", author:"btcnews", score:445},
+    {text:"Fear and greed index at 72, slight caution but trend still up.", title:"Sentiment check", author:"sentimentbot", score:98}
   ];
 }
 
@@ -260,99 +564,101 @@ async function fetchBinance() {
   try {
     const r = await fetch('https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1h&limit=20');
     const d = await r.json();
-    const closes = d.map(x => parseFloat(x[4]));
-    const vols = d.map(x => parseFloat(x[5]));
-    const cur = closes[closes.length-1];
-    const ret1h = ((cur-closes[closes.length-2])/closes[closes.length-2])*100;
-    const ret3h = ((cur-closes[closes.length-4])/closes[closes.length-4])*100;
-    const ma12 = closes.slice(-13,-1).reduce((a,b)=>a+b,0)/12;
-    const pVsMa = ((cur-ma12)/ma12)*100;
+    const closes = d.map(x=>parseFloat(x[4]));
+    const vols   = d.map(x=>parseFloat(x[5]));
+    const cur    = closes[closes.length-1];
+    const ret1h  = ((cur-closes[closes.length-2])/closes[closes.length-2])*100;
+    const ret3h  = ((cur-closes[closes.length-4])/closes[closes.length-4])*100;
+    const ma12   = closes.slice(-13,-1).reduce((a,b)=>a+b,0)/12;
+    const pVsMa  = ((cur-ma12)/ma12)*100;
     const deltas = closes.slice(1).map((c,i)=>c-closes[i]);
-    const gains = deltas.map(d=>Math.max(0,d));
+    const gains  = deltas.map(d=>Math.max(0,d));
     const losses = deltas.map(d=>Math.max(0,-d));
-    const ag = gains.slice(-14).reduce((a,b)=>a+b,0)/14;
-    const al = losses.slice(-14).reduce((a,b)=>a+b,0)/14;
-    const rsi = al===0 ? 100 : 100-(100/(1+ag/al));
-    const recentC = closes.slice(-7);
-    const mean = recentC.reduce((a,b)=>a+b,0)/recentC.length;
-    const std = Math.sqrt(recentC.map(c=>(c-mean)**2).reduce((a,b)=>a+b,0)/recentC.length);
+    const ag     = gains.slice(-14).reduce((a,b)=>a+b,0)/14;
+    const al     = losses.slice(-14).reduce((a,b)=>a+b,0)/14;
+    const rsi    = al===0?100:100-(100/(1+ag/al));
+    const recentC= closes.slice(-7);
+    const mean   = recentC.reduce((a,b)=>a+b,0)/recentC.length;
+    const std    = Math.sqrt(recentC.map(c=>(c-mean)**2).reduce((a,b)=>a+b,0)/recentC.length);
     const avgVol = vols.slice(-7,-1).reduce((a,b)=>a+b,0)/6;
     const volRel = vols[vols.length-1]/avgVol;
-    return { cur, ret1h, ret3h, rsi, std, volRel, pVsMa };
+    return {cur, ret1h, ret3h, rsi, std, volRel, pVsMa};
   } catch(e) {
-    return { cur:85000, ret1h:0.3, ret3h:0.8, rsi:54, std:250, volRel:1.05, pVsMa:0.2 };
+    return {cur:85000, ret1h:0.3, ret3h:0.8, rsi:54, std:250, volRel:1.05, pVsMa:0.2};
   }
 }
 
 async function callAPI(features) {
   setStatus('Consultando modelo en IBM Watson...', 'amber');
-  const r = await fetch(API + '/predict', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify(features)
+  const r = await fetch(API+'/predict', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(features)
   });
   return await r.json();
 }
 
 function renderComments(posts) {
   document.getElementById('comments-container').innerHTML = posts.map(p => {
-    const s = vader(p.text);
+    const s   = vader(p.text);
     const pct = Math.round((s+1)/2*100);
-    const col = s > 0.1 ? '#639922' : s < -0.1 ? '#e24b4a' : '#888780';
-    const lbl = s > 0.1 ? 'positivo' : s < -0.1 ? 'negativo' : 'neutral';
-    const preview = p.title.length > 90 ? p.title.slice(0,90)+'…' : p.title;
+    const col = s>0.1?'var(--verde-oscuro)':s<-0.1?'var(--terracota)':'var(--dorado-claro)';
+    const lbl = s>0.1?'positivo':s<-0.1?'negativo':'neutral';
+    const preview = p.title.length>90?p.title.slice(0,90)+'…':p.title;
     return `<div class="comment-item">
       <div class="comment-text">${preview}</div>
       <div class="comment-footer">
         <span class="comment-meta">u/${p.author} · ${p.score} pts</span>
         <div class="sent-bar"><div class="sent-fill" style="width:${pct}%;background:${col};height:100%;"></div></div>
-        <span style="font-size:11px;font-weight:500;color:${col};white-space:nowrap;">${s.toFixed(2)} ${lbl}</span>
+        <span style="font-family:'DM Mono',monospace;font-size:10px;font-weight:500;color:${col};white-space:nowrap;">${s.toFixed(2)}</span>
       </div>
     </div>`;
   }).join('');
 }
 
 function renderDistribution(posts) {
-  const scores = posts.map(p => vader(p.text));
-  const pos = scores.filter(s=>s>0.1).length;
-  const neg = scores.filter(s=>s<-0.1).length;
-  const neu = scores.length - pos - neg;
-  const total = scores.length;
-  document.getElementById('db-neg').style.flex = neg || 0.01;
-  document.getElementById('db-neu').style.flex = neu || 0.01;
-  document.getElementById('db-pos').style.flex = pos || 0.01;
+  const scores = posts.map(p=>vader(p.text));
+  const pos    = scores.filter(s=>s>0.1).length;
+  const neg    = scores.filter(s=>s<-0.1).length;
+  const neu    = scores.length-pos-neg;
+  const total  = scores.length;
+  document.getElementById('db-neg').style.flex = neg||0.01;
+  document.getElementById('db-neu').style.flex = neu||0.01;
+  document.getElementById('db-pos').style.flex = pos||0.01;
   document.getElementById('dl-neg').textContent = neg+' ('+Math.round(neg/total*100)+'%)';
   document.getElementById('dl-neu').textContent = neu+' ('+Math.round(neu/total*100)+'%)';
   document.getElementById('dl-pos').textContent = pos+' ('+Math.round(pos/total*100)+'%)';
 }
 
 function renderPrediction(result) {
-  const box = document.getElementById('pred-box');
+  const box  = document.getElementById('pred-box');
   const icon = document.getElementById('pred-icon');
-  const dir = document.getElementById('pred-dir');
+  const dir  = document.getElementById('pred-dir');
   const conf = document.getElementById('pred-conf');
   const fill = document.getElementById('conf-fill');
-  const pct = Math.round(result.confidence * 100);
-  box.className = 'prediction-box ' + (result.prediction===1 ? 'up' : 'down');
-  icon.textContent = result.prediction===1 ? '↑' : '↓';
-  dir.textContent = result.direction;
-  dir.className = 'pred-direction ' + (result.prediction===1 ? 'up' : 'down');
-  conf.textContent = 'Confianza: ' + pct + '%';
-  fill.className = 'conf-fill ' + (result.prediction===1 ? '' : 'down');
-  fill.style.width = pct + '%';
+  const pct  = Math.round(result.confidence*100);
+  box.className  = 'prediction-box '+(result.prediction===1?'up':'down');
+  icon.textContent = result.prediction===1?'↑':'↓';
+  dir.textContent  = result.direction;
+  dir.className    = 'pred-direction '+(result.prediction===1?'up':'down');
+  conf.textContent = 'CONFIANZA · '+pct+'%';
+  fill.className   = 'conf-fill '+(result.prediction===1?'':'down');
+  fill.style.width = pct+'%';
 }
 
 function renderTech(tech) {
-  document.getElementById('t1').textContent = fmt(tech.ret1h,2,true)+'%';
-  document.getElementById('t1').style.color = tech.ret1h>=0?'var(--green)':'var(--red)';
-  document.getElementById('t2').textContent = fmt(tech.ret3h,2,true)+'%';
-  document.getElementById('t2').style.color = tech.ret3h>=0?'var(--green)':'var(--red)';
-  document.getElementById('t3').textContent = fmt(tech.rsi,1);
-  document.getElementById('t3').style.color = tech.rsi>70?'var(--red)':tech.rsi<30?'var(--green)':'var(--text)';
-  document.getElementById('t4').textContent = '$'+Math.round(tech.std).toLocaleString();
-  document.getElementById('t5').textContent = fmt(tech.volRel,2)+'x';
-  document.getElementById('t6').textContent = fmt(tech.pVsMa,2,true)+'%';
-  document.getElementById('t6').style.color = tech.pVsMa>=0?'var(--green)':'var(--red)';
+  const verde    = 'var(--verde-oscuro)';
+  const terracota= 'var(--terracota)';
+  document.getElementById('t1').textContent  = fmt(tech.ret1h,2,true)+'%';
+  document.getElementById('t1').style.color  = tech.ret1h>=0?verde:terracota;
+  document.getElementById('t2').textContent  = fmt(tech.ret3h,2,true)+'%';
+  document.getElementById('t2').style.color  = tech.ret3h>=0?verde:terracota;
+  document.getElementById('t3').textContent  = fmt(tech.rsi,1);
+  document.getElementById('t3').style.color  = tech.rsi>70?terracota:tech.rsi<30?verde:'var(--texto)';
+  document.getElementById('t4').textContent  = '$'+Math.round(tech.std).toLocaleString();
+  document.getElementById('t5').textContent  = fmt(tech.volRel,2)+'x';
+  document.getElementById('t6').textContent  = fmt(tech.pVsMa,2,true)+'%';
+  document.getElementById('t6').style.color  = tech.pVsMa>=0?verde:terracota;
 }
 
 async function runAnalysis() {
@@ -364,27 +670,27 @@ async function runAnalysis() {
     renderComments(posts);
     renderDistribution(posts);
     renderTech(tech);
-    document.getElementById('m-posts').textContent = posts.length;
-    document.getElementById('m-price').textContent = '$'+Math.round(tech.cur).toLocaleString();
-    document.getElementById('m-change').textContent = (tech.ret1h>=0?'+':'')+fmt(tech.ret1h)+'% (1h)';
-    document.getElementById('m-change').style.color = tech.ret1h>=0?'var(--green)':'var(--red)';
-    document.getElementById('m-rsi').textContent = fmt(tech.rsi,1);
-    document.getElementById('m-rsi-label').textContent = tech.rsi>70?'Sobrecomprado':tech.rsi<30?'Sobrevendido':'Zona neutral';
+    document.getElementById('m-posts').textContent    = posts.length;
+    document.getElementById('m-price').textContent    = '$'+Math.round(tech.cur).toLocaleString();
+    document.getElementById('m-change').textContent   = (tech.ret1h>=0?'+':'')+fmt(tech.ret1h)+'% (1h)';
+    document.getElementById('m-change').style.color   = tech.ret1h>=0?'var(--verde-oscuro)':'var(--terracota)';
+    document.getElementById('m-rsi').textContent      = fmt(tech.rsi,1);
+    document.getElementById('m-rsi-label').textContent= tech.rsi>70?'Sobrecomprado':tech.rsi<30?'Sobrevendido':'Zona neutral';
     const scores = posts.map(p=>vader(p.text));
-    const avgV = scores.reduce((a,b)=>a+b,0)/scores.length;
-    document.getElementById('m-vader').textContent = fmt(avgV,3,true);
-    document.getElementById('m-vader-label').textContent = avgV>0.1?'Positivo':avgV<-0.1?'Negativo':'Neutral';
+    const avgV   = scores.reduce((a,b)=>a+b,0)/scores.length;
+    document.getElementById('m-vader').textContent      = fmt(avgV,3,true);
+    document.getElementById('m-vader-label').textContent= avgV>0.1?'Positivo':avgV<-0.1?'Negativo':'Neutral';
     const result = await callAPI({
-      vader: avgV, textblob: avgV*0.8, subjectivity: 0.45,
-      retorno_1h: tech.ret1h, retorno_3h: tech.ret3h, rsi: tech.rsi,
-      volatilidad_6h: tech.std, volumen_relativo: tech.volRel, precio_vs_ma12: tech.pVsMa
+      vader:avgV, textblob:avgV*0.8, subjectivity:0.45,
+      retorno_1h:tech.ret1h, retorno_3h:tech.ret3h, rsi:tech.rsi,
+      volatilidad_6h:tech.std, volumen_relativo:tech.volRel, precio_vs_ma12:tech.pVsMa
     });
     if(result.error) throw new Error(result.error);
     renderPrediction(result);
-    setStatus('Análisis completado · ' + new Date().toLocaleTimeString(), 'green');
-    document.getElementById('dot-indicator').classList.remove('pulse');
+    setStatus('Análisis completado · '+new Date().toLocaleTimeString(), 'green');
+    document.getElementById('dot-hero').classList.remove('pulse');
   } catch(e) {
-    setStatus('Error: ' + e.message, 'red');
+    setStatus('Error: '+e.message, 'red');
   } finally {
     btn.disabled = false;
     btn.textContent = 'Analizar ahora';
