@@ -533,8 +533,8 @@ function fmt(n, dec=2, sign=false) {
 async function fetchReddit() {
   setStatus('Obteniendo posts de r/Bitcoin...', 'amber');
   const urls = [
-    'https://corsproxy.io/?url=' + encodeURIComponent('https://www.reddit.com/r/Bitcoin/new.json?limit=30&raw_json=1'),
-    'https://api.allorigins.win/get?url=' + encodeURIComponent('https://www.reddit.com/r/Bitcoin/new.json?limit=30')
+    'https://corsproxy.io/?url=' + encodeURIComponent('https://www.reddit.com/r/Bitcoin/new.json?limit=100&raw_json=1'),
+    'https://api.allorigins.win/get?url=' + encodeURIComponent('https://www.reddit.com/r/Bitcoin/new.json?limit=100')
   ];
   for(const url of urls) {
     try {
