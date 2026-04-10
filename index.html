@@ -725,31 +725,37 @@ function renderCorrelation(tech, posts) {
     const ctx = document.getElementById('correlationChart').getContext('2d');
     const labels = ['Sent.', 'RSI', 'Ret 1h', 'Volat.', 'vsMA12'];
     
-    // Generación de datos realistas para la matriz
-    const matrix = labels.map((_, i) => labels.map((_, j) => {
-        if (i === j) return 1.0;
-        return (Math.random() * 0.6 - 0.3).toFixed(2); // Simulación de Pearson
-    }));
-
+    // Generación de la matriz 5x5
     const flatData = [];
-    labels.forEach((yLabel, yIdx) => {
-        labels.forEach((xLabel, xIdx) => {
-            flatData.push({x: xLabel, y: yLabel, v: matrix[yIdx][xIdx]});
-        });
-    });
+    for (let i = 0; i < labels.length; i++) {
+        for (let j = 0; j < labels.length; j++) {
+            let val;
+            if (i === j) val = 1.0;
+            else val = (Math.random() * 1.6 - 0.8).toFixed(2); // Simulación de Pearson rho
+            
+            flatData.push({
+                x: j, 
+                y: i, 
+                v: val
+            });
+        }
+    }
 
     if (corrChart) corrChart.destroy();
+
     corrChart = new Chart(ctx, {
-        type: 'bar',
+        type: 'scatter', // Usamos scatter para control total de coordenadas
         data: {
             datasets: [{
-                data: flatData.map(d => 1),
-                backgroundColor: flatData.map(d => {
-                    const v = parseFloat(d.v);
-                    return v > 0 ? `rgba(74, 140, 112, ${v})` : `rgba(192, 149, 106, ${Math.abs(v)})`;
-                }),
-                borderWidth: 1,
-                borderColor: 'var(--crema)'
+                data: flatData,
+                backgroundColor: (context) => {
+                    const v = context.raw ? parseFloat(context.raw.v) : 0;
+                    // Escala: Terracota (negativo) -> Crema -> Verde Oscuro (positivo)
+                    return v > 0 ? `rgba(74, 140, 112, ${Math.abs(v)})` : `rgba(192, 149, 106, ${Math.abs(v)})`;
+                },
+                pointStyle: 'rect', // ¡Este es el truco para que sean cuadrados!
+                pointRadius: 25,    // Ajusta este número según el tamaño de tu card
+                pointHoverRadius: 30
             }]
         },
         options: {
@@ -759,13 +765,29 @@ function renderCorrelation(tech, posts) {
                 legend: { display: false },
                 tooltip: {
                     callbacks: {
-                        label: (c) => `Pearson: ${flatData[c.dataIndex].v}`
+                        label: (c) => `Correlación: ${c.raw.v}`
                     }
                 }
             },
             scales: {
-                x: { type: 'category', labels: labels, grid: { display: false } },
-                y: { type: 'category', labels: labels, grid: { display: false } }
+                x: {
+                    min: -0.5, max: 4.5,
+                    ticks: {
+                        stepSize: 1,
+                        callback: (v) => labels[v],
+                        font: { family: 'DM Mono', size: 10 }
+                    },
+                    grid: { display: false }
+                },
+                y: {
+                    min: -0.5, max: 4.5,
+                    ticks: {
+                        stepSize: 1,
+                        callback: (v) => labels[v],
+                        font: { family: 'DM Mono', size: 10 }
+                    },
+                    grid: { display: false }
+                }
             }
         }
     });
