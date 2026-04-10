@@ -545,7 +545,7 @@ async function fetchReddit() {
       const posts = (data?.data?.children||[])
         .filter(p=>p.data&&p.data.title&&!p.data.stickied)
         .map(p=>({text:(p.data.title+' '+(p.data.selftext||'')).trim(),title:p.data.title,author:p.data.author,score:p.data.score}))
-        .filter(p=>p.text.length>15).slice(0,12);
+        .filter(p=>p.text.length>15);
       if(posts.length>0) return posts;
     } catch(e) {}
   }
